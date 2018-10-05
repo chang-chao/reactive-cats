@@ -1,10 +1,12 @@
 package me.changchao.webflux.reactivecats.service.impl;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -14,12 +16,13 @@ import reactor.cache.CacheFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Signal;
-import reactor.util.context.Context;
 
 @Service
 public class CatServiceImpl implements CatService {
-	private static AtomicReference<Context> storeRef = new AtomicReference<>(Context.empty());
+	@Autowired
+	private CacheManager cacheManager;
 
+	private static String cacheName = "search_result";
 	private static String key = "search_result_key";
 
 	@Override
@@ -28,15 +31,20 @@ public class CatServiceImpl implements CatService {
 		WebClient client = WebClient.create("https://api.thecatapi.com/v1/images/search");
 		Flux<CatDto> fromServer = client.get().retrieve().bodyToFlux(CatDto.class);
 
-		Function<String, Mono<List<Signal<CatDto>>>> reader = k -> Mono
-				.justOrEmpty((storeRef.get().<List<CatDto>>getOrEmpty(k)))
+		return CacheFlux.lookup(reader(), key).onCacheMissResume(fromServer).andWriteWith(writer());
+	}
+
+	private BiFunction<String, List<Signal<CatDto>>, Mono<Void>> writer() {
+		return (k, sigs) -> Flux.fromIterable(sigs).dematerialize().collectList()
+				.doOnNext(l -> cacheManager.getCache(cacheName).put(k, l)).then();
+	}
+
+	@SuppressWarnings("unchecked")
+	private Function<String, Mono<List<Signal<CatDto>>>> reader() {
+		return k -> Mono
+				.justOrEmpty(
+						(Optional.ofNullable((List<CatDto>) (cacheManager.getCache(cacheName).get(k, List.class)))))
 				.flatMap(v -> Flux.fromIterable(v).materialize().collectList());
-
-		BiFunction<String, List<Signal<CatDto>>, Mono<Void>> writer = (k, sigs) -> Flux.fromIterable(sigs)
-				.dematerialize().collectList().doOnNext(l -> storeRef.updateAndGet(ctx -> ctx.put(k, l))).then();
-
-		Flux<CatDto> cats = CacheFlux.lookup(reader, key).onCacheMissResume(fromServer).andWriteWith(writer);
-		return cats;
 	}
 
 }

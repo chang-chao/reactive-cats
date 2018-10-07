@@ -21,6 +21,8 @@ import reactor.core.publisher.Signal;
 public class CatServiceImpl implements CatService {
 	private static final String CACHE_NAME = "sr";
 	private static final String KEY = "k";
+	@Autowired
+	private WebClient client;
 
 	@Autowired
 	private CacheManager cacheManager;
@@ -35,8 +37,6 @@ public class CatServiceImpl implements CatService {
 
 	@Override
 	public Flux<CatDto> search() {
-		// https://stackoverflow.com/questions/49095366/right-way-to-use-spring-webclient-in-multi-thread-environment
-		WebClient client = WebClient.create("https://api.thecatapi.com/v1/images/search");
 		Flux<CatDto> fromServer = client.get().retrieve().bodyToFlux(CatDto.class);
 
 		return CacheFlux.lookup(reader, KEY).onCacheMissResume(fromServer).andWriteWith(writer);

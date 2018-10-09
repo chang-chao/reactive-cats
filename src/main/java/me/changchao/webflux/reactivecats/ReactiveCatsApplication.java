@@ -17,12 +17,13 @@ public class ReactiveCatsApplication {
 
 	}
 
-	public static void main(String[] args) {
-		SpringApplication.run(ReactiveCatsApplication.class, args);
-	}
-
 	@Bean
 	public Reporter<Span> spanReporter() {
 		return Reporter.CONSOLE;
 	}
+
+	public static void main(String[] args) {
+		SpringApplication.run(ReactiveCatsApplication.class, args);
+	}
+
 }

@@ -22,7 +22,7 @@ public class CatServiceImpl implements CatService {
 	private static final String CACHE_NAME = "sr";
 	private static final String KEY = "k";
 	@Autowired
-	private WebClient client;
+	private WebClient webClient;
 
 	@Autowired
 	private CacheManager cacheManager;
@@ -37,7 +37,7 @@ public class CatServiceImpl implements CatService {
 
 	@Override
 	public Flux<CatDto> search() {
-		Flux<CatDto> fromServer = client.get().retrieve().bodyToFlux(CatDto.class);
+		Flux<CatDto> fromServer = webClient.get().retrieve().bodyToFlux(CatDto.class);
 
 		return CacheFlux.lookup(reader, KEY).onCacheMissResume(fromServer).andWriteWith(writer);
 	}

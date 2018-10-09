@@ -37,9 +37,9 @@ public class CatServiceImpl implements CatService {
 
 	@Override
 	public Flux<CatDto> search() {
-		Flux<CatDto> fromServer = webClient.get().retrieve().bodyToFlux(CatDto.class);
+		Flux<CatDto> catsFromServer = webClient.get().retrieve().bodyToFlux(CatDto.class);
 
-		return CacheFlux.lookup(reader, KEY).onCacheMissResume(fromServer).andWriteWith(writer);
+		return CacheFlux.lookup(reader, KEY).onCacheMissResume(catsFromServer).andWriteWith(writer);
 	}
 
 }
